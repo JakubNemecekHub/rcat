@@ -1,23 +1,47 @@
-use std::{error::Error, fs};
+use std::{
+    error::Error,
+    fs,
+    io::{self, Read},
+};
 
-pub struct Config {
-    pub file_path: String,
+pub enum Config {
+    Stdin,
+    File(String),
 }
 
 impl Config {
 
     pub fn build(mut args: impl Iterator<Item=String>) -> Result<Config, &'static str> {
         args.next();
-        let file_path = match args.next() {
-            Some(value) => value,
-            None => return Err("Didn't get a file path."),
+        match args.next() {
+            Some(value) => {
+                if value == "-" {
+                    return Ok(Config::Stdin);
+                } else {
+                    return Ok(Config::File(value));
+                }
+            },
+            None => return Err("Couldn't parse arguments."),
         };
-        Ok(Config { file_path })
     }
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let contents = fs::read_to_string(config.file_path)?;
+    match config {
+        Config::Stdin => read_stdin(),
+        Config::File(file_path) => read_file(&file_path),
+    }
+}
+
+pub fn read_file(file_path: &str) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(file_path)?;
     println!("{}", contents);
+    Ok(())
+}
+
+pub fn read_stdin() -> Result<(), Box<dyn Error>> {
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer)?;
+    println!("{}", buffer);
     Ok(())
 }
