@@ -7,7 +7,7 @@ fn main() {
 
     let matches = command!()
     .author("Jakub Němeček")
-    .about("A Rust implementation of GNU cat program.")
+    .about("Concatenate FILE(s), or standard input, to standard output")
     .arg(
         Arg::new("FILE")
             .required(false)
