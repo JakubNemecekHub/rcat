@@ -59,12 +59,12 @@ fn main() {
     };
 
     if matches.get_flag("numbers") {
-        config.line_numbers = LineNumbers::All(0);
+        config.line_numbers = LineNumbers::All;
     } else if matches.get_flag("nonblank") {
-        config.line_numbers = LineNumbers::Nonblank(0);
+        config.line_numbers = LineNumbers::Nonblank;
     }
 
-    if let Err(e) = rcat::run(&files, config) {
+    if let Err(e) = rcat::run(&files, &config) {
         eprintln!("Application error: {e}");
         process::exit(1);
     }

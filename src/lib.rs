@@ -15,8 +15,8 @@ pub struct Config {
 }
 pub enum LineNumbers {
     None,
-    All(i32),
-    Nonblank(i32)
+    All,
+    Nonblank
 }
 
 struct Suffix(bool);
@@ -31,17 +31,19 @@ impl fmt::Display for Suffix {
 }
 
 
-pub fn run(files: &Vec<&str>, mut config: Config) -> Result<(), Box<dyn Error>> {
+pub fn run(files: &Vec<&str>, config: &Config) -> Result<(), Box<dyn Error>> {
+    let mut counter: i32 = 0;
     if files.is_empty() {
-        print_lines(read_stdin_lines(), &mut config)?;
+        counter += print_lines(read_stdin_lines(), config, counter)?;
     }
     for &file in files {
         if file != "-" {
-            if let Err(_) = print_lines(read_file_lines(file), &mut config) {
-                eprintln!("cat: {}: no such file or directory", file);
-            };
+            match print_lines(read_file_lines(file), config, counter) {
+                Ok(delta) => counter += delta,
+                Err(_) => eprintln!("cat: {}: no such file or directory", file),
+            }
         } else {
-            print_lines(read_stdin_lines(), &mut config)?;
+            counter += print_lines(read_stdin_lines(), config, counter)?;
         }
     }
     Ok(())
@@ -61,24 +63,24 @@ fn read_stdin_lines() -> io::Result<StaticStdinLines> {
     Ok(reader.lines())
 }
 
-fn print_lines<I, E>(lines_result: Result<I, E>, config: &mut Config) -> Result<(), E>
+fn print_lines<I, E>(lines_result: Result<I, E>, config: &Config, counter: i32) -> Result<i32, E>
 where I: Iterator<Item = io::Result<String>>,
       E: From<io::Error> {
     match lines_result {
         Err(err) => Err(err),
         Ok(lines) => {
-            match config.line_numbers {
+            let delta = match config.line_numbers {
                 LineNumbers::None => print_lines_unnumbered(lines, config),
-                LineNumbers::All(ref mut counter) => print_lines_numbered(lines, counter, config.squeeze, config.ends),
-                LineNumbers::Nonblank(ref mut counter) => print_lines_numbered_non_blank(lines, counter, config.squeeze, config.ends),
-            }
-            Ok(())
+                LineNumbers::All => print_lines_numbered(lines, counter, config),
+                LineNumbers::Nonblank => print_lines_numbered_non_blank(lines, counter, config),
+            };
+            Ok(delta)
         },
     }
 }
 
 /// Print lines without numbers
-fn print_lines_unnumbered<I>(lines: I, config: &mut Config) -> ()
+fn print_lines_unnumbered<I>(lines: I, config: &Config) -> i32
 where I: Iterator<Item = io::Result<String>> {
     let mut previous_empty = false;
     let suffix = Suffix(config.ends);
@@ -89,40 +91,43 @@ where I: Iterator<Item = io::Result<String>> {
         previous_empty = line.is_empty();
         println!("{}{}", line, suffix);
     }
+    0
 }
 
 /// Print numbered lines
-fn print_lines_numbered<I>(lines: I, count: &mut i32, squeeze: bool, ends: bool) -> ()
+fn print_lines_numbered<I>(lines: I, mut counter: i32, config: &Config) -> i32
 where I: Iterator<Item = io::Result<String>> {
     let mut previous_empty = false;
-    let suffix = Suffix(ends);
+    let suffix = Suffix(config.ends);
     for line in lines.map_while(Result::ok) {
-        if squeeze & line.is_empty() & previous_empty {
+        if config.squeeze & line.is_empty() & previous_empty {
             continue;
         }
         previous_empty = line.is_empty();
-        println!("{} {}{}", count, line, suffix);
-        *count += 1;
+        println!("{} {}{}", counter, line, suffix);
+        counter += 1;
     }
+    counter
 }
 
 /// Print lines, number only nonblank lines
-fn print_lines_numbered_non_blank<I>(lines: I, count: &mut i32, squeeze: bool, ends: bool) -> ()
+fn print_lines_numbered_non_blank<I>(lines: I, mut counter: i32, config: &Config) -> i32
 where I: Iterator<Item = io::Result<String>> {
     let mut previous_empty = false;
-    let suffix = Suffix(ends);
+    let suffix = Suffix(config.ends);
     for line in lines.map_while(Result::ok) {
-        if squeeze & line.is_empty() & previous_empty {
+        if config.squeeze & line.is_empty() & previous_empty {
             continue;
         }
         previous_empty = line.is_empty();
         if line.is_empty() {
             println!("{}{}", line, suffix);
         } else {
-            println!("{} {}{}", count, line, suffix);
-            *count += 1;
+            println!("{} {}{}", counter, line, suffix);
+            counter += 1;
         }
     }
+    counter
 }
 
 
