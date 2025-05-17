@@ -1,6 +1,7 @@
 use std::process;
-
 use clap::{command, Arg, ArgAction};
+
+use rcat::LineNumbers;
 
 fn main() {
 
@@ -18,6 +19,15 @@ fn main() {
             .short('n')
             .long("number")
             .action(ArgAction::SetTrue)
+            .conflicts_with("nonblank")
+    )
+    .arg(
+        Arg::new("nonblank")
+            .help("number nonempty output lines")
+            .short('b')
+            .long("number-nonblank")
+            .action(ArgAction::SetTrue)
+            .conflicts_with("numbers")
     )
     .get_matches();
 
@@ -27,7 +37,12 @@ fn main() {
         .map(|v| v.as_str())
         .collect::<Vec<_>>();
 
-    let numbers = matches.get_flag("numbers");
+    let mut numbers = LineNumbers::None;
+    if matches.get_flag("numbers") {
+        numbers = LineNumbers::All(0);
+    } else if matches.get_flag("nonblank") {
+        numbers = LineNumbers::Nonblank(0);
+    }
 
     if let Err(e) = rcat::run(&files, numbers) {
         eprintln!("Application error: {e}");
