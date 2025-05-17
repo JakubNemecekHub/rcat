@@ -1,18 +1,37 @@
-use std::{env, process};
+use std::process;
 
-use rcat::Config;
+use clap::{command, Arg, ArgAction};
 
 fn main() {
 
-    let config = Config::build(env::args()).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {err}");
-        process::exit(1);
-    });
+    let matches = command!()
+    .author("Jakub Němeček")
+    .about("A Rust implementation of GNU cat program.")
+    .arg(
+        Arg::new("FILE")
+            .required(false)
+            .action(ArgAction::Append)
+    )
+    .arg(
+        Arg::new("numbers")
+            .help("number all output lines")
+            .short('n')
+            .long("number")
+            .action(ArgAction::SetTrue)
+    )
+    .get_matches();
 
-    if let Err(e) = rcat::run(config) {
+    let files = matches
+        .get_many::<String>("FILE")
+        .unwrap_or_default()
+        .map(|v| v.as_str())
+        .collect::<Vec<_>>();
+
+    let numbers = matches.get_flag("numbers");
+
+    if let Err(e) = rcat::run(&files, numbers) {
         eprintln!("Application error: {e}");
         process::exit(1);
     }
-
 
 }
