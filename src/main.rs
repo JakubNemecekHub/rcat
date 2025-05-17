@@ -36,6 +36,14 @@ fn main() {
         .long("squeeze-blank")
         .action(ArgAction::SetTrue)
     )
+    .arg(
+        Arg::new("ends")
+        .help("display $ at end of each line")
+        .short('e')
+        .long("show-ends")
+        .short_alias('E')
+        .action(ArgAction::SetTrue)
+    )
     .get_matches();
 
     let files = matches
@@ -47,6 +55,7 @@ fn main() {
     let mut config = Config {
         line_numbers: LineNumbers::None,
         squeeze: matches.get_flag("squeeze"),
+        ends: matches.get_flag("ends"),
     };
 
     if matches.get_flag("numbers") {
