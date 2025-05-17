@@ -1,7 +1,7 @@
 use std::process;
 use clap::{command, Arg, ArgAction};
 
-use rcat::LineNumbers;
+use rcat::{LineNumbers, Config};
 
 fn main() {
 
@@ -29,6 +29,13 @@ fn main() {
             .action(ArgAction::SetTrue)
             .conflicts_with("numbers")
     )
+    .arg(
+        Arg::new("squeeze")
+        .help("suppress repeated empty output lines")
+        .short('s')
+        .long("squeeze-blank")
+        .action(ArgAction::SetTrue)
+    )
     .get_matches();
 
     let files = matches
@@ -37,14 +44,18 @@ fn main() {
         .map(|v| v.as_str())
         .collect::<Vec<_>>();
 
-    let mut numbers = LineNumbers::None;
+    let mut config = Config {
+        line_numbers: LineNumbers::None,
+        squeeze: matches.get_flag("squeeze"),
+    };
+
     if matches.get_flag("numbers") {
-        numbers = LineNumbers::All(0);
+        config.line_numbers = LineNumbers::All(0);
     } else if matches.get_flag("nonblank") {
-        numbers = LineNumbers::Nonblank(0);
+        config.line_numbers = LineNumbers::Nonblank(0);
     }
 
-    if let Err(e) = rcat::run(&files, numbers) {
+    if let Err(e) = rcat::run(&files, config) {
         eprintln!("Application error: {e}");
         process::exit(1);
     }

@@ -7,23 +7,27 @@ use std::{
 type FileLines = io::Lines<io::BufReader<fs::File>>;
 type StaticStdinLines = io::Lines<io::BufReader<io::StdinLock<'static>>>;
 
+pub struct Config {
+    pub line_numbers: LineNumbers,
+    pub squeeze: bool,
+}
 pub enum LineNumbers {
     None,
     All(i32),
     Nonblank(i32)
 }
 
-pub fn run(files: &Vec<&str>, mut numbers: LineNumbers) -> Result<(), Box<dyn Error>> {
+pub fn run(files: &Vec<&str>, mut config: Config) -> Result<(), Box<dyn Error>> {
     if files.is_empty() {
-        print_lines(read_stdin_lines(), &mut numbers)?;
+        print_lines(read_stdin_lines(), &mut config)?;
     }
     for &file in files {
         if file != "-" {
-            if let Err(_) = print_lines(read_file_lines(file), &mut numbers) {
+            if let Err(_) = print_lines(read_file_lines(file), &mut config) {
                 eprintln!("cat: {}: no such file or directory", file);
             };
         } else {
-            print_lines(read_stdin_lines(), &mut numbers)?;
+            print_lines(read_stdin_lines(), &mut config)?;
         }
     }
     Ok(())
@@ -43,16 +47,16 @@ fn read_stdin_lines() -> io::Result<StaticStdinLines> {
     Ok(reader.lines())
 }
 
-fn print_lines<I, E>(lines_result: Result<I, E>, numbers: &mut LineNumbers) -> Result<(), E>
+fn print_lines<I, E>(lines_result: Result<I, E>, config: &mut Config) -> Result<(), E>
 where I: Iterator<Item = io::Result<String>>,
       E: From<io::Error> {
     match lines_result {
         Err(err) => Err(err),
         Ok(lines) => {
-            match numbers {
-                LineNumbers::None => print_lines_unnumbered(lines),
-                LineNumbers::All(ref mut counter) => print_lines_numbered(lines, counter),
-                LineNumbers::Nonblank(ref mut counter) => print_lines_numbered_non_blank(lines, counter),
+            match config.line_numbers {
+                LineNumbers::None => print_lines_unnumbered(lines, config.squeeze),
+                LineNumbers::All(ref mut counter) => print_lines_numbered(lines, counter, config.squeeze),
+                LineNumbers::Nonblank(ref mut counter) => print_lines_numbered_non_blank(lines, counter, config.squeeze),
             }
             Ok(())
         },
@@ -60,26 +64,41 @@ where I: Iterator<Item = io::Result<String>>,
 }
 
 /// Print lines without numbers
-fn print_lines_unnumbered<I>(lines: I) -> ()
+fn print_lines_unnumbered<I>(lines: I, squeeze: bool) -> ()
 where I: Iterator<Item = io::Result<String>> {
+    let mut previous_empty = false;
     for line in lines.map_while(Result::ok) {
+        if squeeze & line.is_empty() & previous_empty {
+            continue;
+        }
+        previous_empty = line.is_empty();
         println!("{}", line);
     }
 }
 
 /// Print numbered lines
-fn print_lines_numbered<I>(lines: I, count: &mut i32) -> ()
+fn print_lines_numbered<I>(lines: I, count: &mut i32, squeeze: bool) -> ()
 where I: Iterator<Item = io::Result<String>> {
+    let mut previous_empty = false;
     for line in lines.map_while(Result::ok) {
+        if squeeze & line.is_empty() & previous_empty {
+            continue;
+        }
+        previous_empty = line.is_empty();
         println!("{} {}", count, line);
         *count += 1;
     }
 }
 
 /// Print lines, number only nonblank lines
-fn print_lines_numbered_non_blank<I>(lines: I, count: &mut i32) -> ()
+fn print_lines_numbered_non_blank<I>(lines: I, count: &mut i32, squeeze: bool) -> ()
 where I: Iterator<Item = io::Result<String>> {
+    let mut previous_empty = false;
     for line in lines.map_while(Result::ok) {
+        if squeeze & line.is_empty() & previous_empty {
+            continue;
+        }
+        previous_empty = line.is_empty();
         if line.is_empty() {
             println!("{}", line);
         } else {
