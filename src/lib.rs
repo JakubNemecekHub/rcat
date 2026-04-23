@@ -13,6 +13,7 @@ pub struct Config {
     pub squeeze: bool,
     pub ends: bool,
 }
+#[derive(PartialEq)]
 pub enum LineNumbers {
     None,
     All,
@@ -69,63 +70,29 @@ where I: Iterator<Item = io::Result<String>>,
     match lines_result {
         Err(err) => Err(err),
         Ok(lines) => {
-            let delta = match config.line_numbers {
-                LineNumbers::None => print_lines_unnumbered(lines, config),
-                LineNumbers::All => print_lines_numbered(lines, counter, config),
-                LineNumbers::Nonblank => print_lines_numbered_non_blank(lines, counter, config),
-            };
+            let delta = emit(lines, counter, config);
             Ok(delta)
         },
     }
 }
 
-/// Print lines without numbers
-fn print_lines_unnumbered<I>(lines: I, config: &Config) -> i32
+/// Print lines
+fn emit<I>(lines: I, mut counter: i32, config: &Config) -> i32
 where I: Iterator<Item = io::Result<String>> {
     let mut previous_empty = false;
     let suffix = Suffix(config.ends);
     for line in lines.map_while(Result::ok) {
-        if config.squeeze & line.is_empty() & previous_empty {
+        let current_empty = line.is_empty();
+        if config.squeeze & current_empty & previous_empty {
             continue;
         }
-        previous_empty = line.is_empty();
-        println!("{}{}", line, suffix);
-    }
-    0
-}
-
-/// Print numbered lines
-fn print_lines_numbered<I>(lines: I, mut counter: i32, config: &Config) -> i32
-where I: Iterator<Item = io::Result<String>> {
-    let mut previous_empty = false;
-    let suffix = Suffix(config.ends);
-    for line in lines.map_while(Result::ok) {
-        if config.squeeze & line.is_empty() & previous_empty {
-            continue;
-        }
-        previous_empty = line.is_empty();
-        println!("{} {}{}", counter, line, suffix);
-        counter += 1;
-    }
-    counter
-}
-
-/// Print lines, number only nonblank lines
-fn print_lines_numbered_non_blank<I>(lines: I, mut counter: i32, config: &Config) -> i32
-where I: Iterator<Item = io::Result<String>> {
-    let mut previous_empty = false;
-    let suffix = Suffix(config.ends);
-    for line in lines.map_while(Result::ok) {
-        if config.squeeze & line.is_empty() & previous_empty {
-            continue;
-        }
-        previous_empty = line.is_empty();
-        if line.is_empty() {
-            println!("{}{}", line, suffix);
-        } else {
-            println!("{} {}{}", counter, line, suffix);
+        previous_empty = current_empty;
+        if !current_empty && config.line_numbers != LineNumbers::None || 
+            current_empty && config.line_numbers == LineNumbers::All {
+            print!("{} ", counter);
             counter += 1;
         }
+        println!("{}{}", line, suffix);
     }
     counter
 }
