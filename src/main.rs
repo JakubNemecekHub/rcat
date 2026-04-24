@@ -44,6 +44,12 @@ fn main() {
         .short_alias('E')
         .action(ArgAction::SetTrue)
     )
+    .arg(
+        Arg::new("unbuffered")
+        .help("(ignored)")
+        .short('u')
+        .action(ArgAction::SetTrue)
+    )
     .get_matches();
 
     let files = matches
