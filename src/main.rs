@@ -64,9 +64,7 @@ fn main() {
         config.line_numbers = LineNumbers::Nonblank;
     }
 
-    if let Err(e) = rcat::run(&files, &config) {
-        eprintln!("Application error: {e}");
-        process::exit(1);
-    }
+    let exit_code = rcat::run(&files, &config);
+    process::exit(exit_code);
 
 }
